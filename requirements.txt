@@ -1,3 +1,11 @@
 streamlit
 pandas
+numpy
 plotly
+Pillow
+streamlit-option-menu
+python-dotenv
+openpyxl
+protobuf
+altair
+typing-extensions
