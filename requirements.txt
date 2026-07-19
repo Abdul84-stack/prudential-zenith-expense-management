@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+plotly
+reportlab
+Pillow
+streamlit-option
+python-dotenv
+openpyxl
+xlrd
+protobuf
