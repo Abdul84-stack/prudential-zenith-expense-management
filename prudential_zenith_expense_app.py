@@ -1,4 +1,4 @@
-# app.py - Complete Updated Version with Brand Colors & Working Approvals
+# app.py - Complete Updated Version with Fixed Approvals & Brand Colors
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -27,9 +27,9 @@ st.markdown("""
     /* Prudential Zenith Brand Colors */
     :root {
         --pz-red: #ED1C24;
-        --pz-gold: #FFD700;
         --pz-dark: #1a1a1a;
         --pz-light: #f8f9fa;
+        --pz-gray: #666666;
     }
     
     /* Main background */
@@ -37,67 +37,82 @@ st.markdown("""
         background-color: #f5f5f5;
     }
     
-    /* Login Page Styling */
+    /* Login Page Styling - Smaller, More Elegant */
     .login-container {
-        max-width: 450px;
-        margin: 80px auto;
-        padding: 50px;
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-        border-top: 6px solid #ED1C24;
+        max-width: 380px !important;
+        margin: 60px auto !important;
+        padding: 35px 40px !important;
+        background: white !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important;
+        border-top: 5px solid #ED1C24 !important;
     }
     
     .login-container h1 {
         color: #1a1a1a;
         text-align: center;
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 700;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
     }
     
     .login-container .subtitle {
         text-align: center;
         color: #666;
-        font-size: 14px;
-        margin-bottom: 30px;
+        font-size: 13px;
+        margin-bottom: 25px;
     }
     
     .login-container .brand-logo {
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
     }
     
     .login-container .brand-logo .pz-red {
         color: #ED1C24;
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 800;
+        letter-spacing: 1px;
     }
     
-    .login-container .brand-logo .pz-gold {
-        color: #FFD700;
-        font-size: 32px;
+    .login-container .brand-logo .pz-dark {
+        color: #1a1a1a;
+        font-size: 28px;
         font-weight: 800;
+        letter-spacing: 1px;
+    }
+    
+    .login-container .brand-logo .pz-sub {
+        font-size: 11px;
+        color: #666;
+        letter-spacing: 3px;
+        font-weight: 600;
     }
     
     /* Metric Cards */
     .metric-card {
         background: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        padding: 18px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         border-left: 4px solid #ED1C24;
-        margin-bottom: 15px;
+        margin-bottom: 12px;
+        transition: all 0.3s;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.10);
     }
     
     .metric-card .metric-value {
-        font-size: 28px;
+        font-size: 26px;
         font-weight: 700;
         color: #1a1a1a;
     }
     
     .metric-card .metric-label {
-        font-size: 14px;
+        font-size: 13px;
         color: #666;
         font-weight: 500;
     }
@@ -106,9 +121,9 @@ st.markdown("""
     .notification-badge {
         background: #ED1C24;
         color: white;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         display: inline-block;
     }
@@ -117,27 +132,27 @@ st.markdown("""
     .status-pending {
         background: #FFF3CD;
         color: #856404;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
     }
     
     .status-approved {
         background: #D4EDDA;
         color: #155724;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
     }
     
     .status-rejected {
         background: #F8D7DA;
         color: #721C24;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
     }
     
@@ -149,6 +164,7 @@ st.markdown("""
         border-radius: 8px;
         font-weight: 600;
         transition: all 0.3s;
+        padding: 0.5rem 1rem;
     }
     
     .stButton > button:hover {
@@ -164,14 +180,15 @@ st.markdown("""
     
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 6px;
     }
     
     .stTabs [data-baseweb="tab"] {
         background-color: white;
         border-radius: 8px;
-        padding: 8px 20px;
+        padding: 6px 16px;
         font-weight: 500;
+        font-size: 13px;
     }
     
     .stTabs [aria-selected="true"] {
@@ -214,30 +231,30 @@ DEFAULT_USERS = {
     'head_internal_control': {'password': '123456', 'role': 'Head of Internal Control', 'department': 'Internal Control & Risk', 'admin_right': False},
 }
 
-# Expense lines budget data (in NGN'millions)
+# Updated Budget Data (Actual NGN values)
 EXPENSE_BUDGET = {
-    '430106 WEEKEND WORK ALLOWANCE': 3042,
-    '430608 PRINTING & STATIONERY': 29849,
-    '430609 ENTERTAINMENT EXPS': 28888,
-    '430610 OFFICE CONSUMABLES/GENERAL RUNNING EXPS': 55359,
-    '430612 COMMUNICATION /TELEPHONE EXPS': 20172,
-    '430657 CLEANING EXPENSE': 24536,
-    '430658 CIIN PICNIC': 13338,
-    '430619 REPAIRS AND MAINTENANCE-MOTOR VEHICLE': 72512,
-    '430620 VEHICLE RUNNING EXPENSES': 11443,
-    '430624 DIESEL AND FUELING': 254972,
-    '430625 POSTAGES': 25556,
-    '430626 NEWSPAPERS AND DAILIES': 1592,
-    '430631 INSURANCE COST': 105237,
-    '430633 SERVICE CHARGE': 82242,
-    '430644 REPAIRS AND MAINTENANCE-FURNITURE': 3730,
-    '430645 REPAIRS AND MAINTENANCE-EQUIPMENT': 17562,
-    '430647 BID EXPENSE': 739,
-    '430648 LATE NIGHT ALLOWANCE': 624,
-    '430663 RENT': 222164,
-    '430611 TRANSPORT & TRAVELLING': 119794,
-    '430629 HOTEL ACCOMMODATION': 100070,
-    'NEW GL DRIVERS SALARY': 150000,
+    '430106 WEEKEND WORK ALLOWANCE': 3042000.00,
+    '430608 PRINTING & STATIONERY': 29849000.00,
+    '430609 ENTERTAINMENT EXPS': 28887582.06,
+    '430610 OFFICE CONSUMABLES/GENERAL RUNNING EXPS': 55359000.00,
+    '430612 COMMUNICATION /TELEPHONE EXPS': 20172000.00,
+    '430657 CLEANING EXPENSE': 24536000.00,
+    '430658 CIIN PICNIC': 13338000.00,
+    '430619 REPAIRS AND MAINTENANCE-MOTOR VEHICLE': 72512000.00,
+    '430620 VEHICLE RUNNING EXPENSES': 11443000.00,
+    '430624 DIESEL AND FUELING': 254972000.00,
+    '430625 POSTAGES': 25556000.00,
+    '430626 NEWSPAPERS AND DAILIES': 1592000.00,
+    '430631 INSURANCE COST': 105237000.00,
+    '430633 SERVICE CHARGE': 82242000.00,
+    '430644 REPAIRS AND MAINTENANCE-FURNITURE': 3730000.00,
+    '430645 REPAIRS AND MAINTENANCE-EQUIPMENT': 17561815.57,
+    '430647 BID EXPENSE': 739030.50,
+    '430648 LATE NIGHT ALLOWANCE': 624000.00,
+    '430663 RENT': 222163727.50,
+    '430611 TRANSPORT & TRAVELLING': 119794000.00,
+    '430629 HOTEL ACCOMMODATION': 100070000.00,
+    'NEW GL DRIVERS SALARY': 150000000.00,
 }
 
 # Vendor data
@@ -249,31 +266,42 @@ VENDOR_DATA = {
 
 # Department approval mapping
 DEPARTMENT_APPROVAL_MAP = {
-    'Administration': ['Head of Admin', 'Head of Investment', 'Head of Finance', 'Head of Compliance', 'Head of Internal Control', 'CFO/ED'],
-    'Finance & Investment': ['Head of Investment', 'Head of Finance', 'Head of Compliance', 'Head of Internal Control', 'CFO/ED'],
-    'IT': ['Head of IT', 'Head of Admin', 'Head of Compliance', 'Head of Internal Control', 'CFO/ED'],
-    'Corporate Sales': ['Head Corporate Sales', 'Head of Compliance', 'Head of Internal Control', 'CFO/ED'],
-    'Legal and Compliance': ['Head of Compliance', 'Head of Internal Control', 'CFO/ED'],
-    'Internal Control & Risk': ['Head of Internal Control', 'Head of Compliance', 'CFO/ED'],
-    'Human Resources': ['Head of HR', 'Head of Admin', 'Head of Compliance', 'Head of Internal Control', 'CFO/ED'],
+    'Administration': ['Head of Admin', 'Head of Investment', 'Head of Compliance', 'Head of Internal Control'],
+    'Finance & Investment': ['Head of Finance', 'Head of Investment', 'Head of Compliance', 'Head of Internal Control'],
+    'IT': ['Head of IT', 'Head of Admin', 'Head of Compliance', 'Head of Internal Control'],
+    'Corporate Sales': ['Head Corporate Sales', 'Head of Compliance', 'Head of Internal Control'],
+    'Legal and Compliance': ['Head of Compliance', 'Head of Internal Control'],
+    'Internal Control & Risk': ['Head of Internal Control', 'Head of Compliance'],
+    'HR': ['Head of HR', 'Head of Admin', 'Head of Compliance', 'Head of Internal Control'],
 }
 
 def get_approval_chain(department, amount):
     """Get approval chain based on department and amount"""
-    base_chain = DEPARTMENT_APPROVAL_MAP.get(department, ['Head of Department', 'Head of Compliance', 'Head of Internal Control', 'CFO/ED'])
+    base_chain = DEPARTMENT_APPROVAL_MAP.get(department, ['Head of Department', 'Head of Compliance', 'Head of Internal Control'])
     
     # Filter chain based on amount thresholds
     chain = []
     for approver in base_chain:
+        # Skip Investment for small amounts
         if approver == 'Head of Investment' and amount <= 250000:
             continue
+        # Skip Finance for large amounts
         if approver == 'Head of Finance' and amount > 250000:
             continue
+        # Skip CFO for amounts <= 5,000,000
         if approver == 'CFO/ED' and amount <= 5000000:
             continue
         chain.append(approver)
     
-    return chain if chain else ['Head of Department']
+    # Add CFO for large amounts
+    if amount > 5000000 and 'CFO/ED' not in chain:
+        chain.append('CFO/ED')
+    
+    # Ensure minimum chain
+    if not chain:
+        chain = ['Head of Department']
+    
+    return chain
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -293,17 +321,16 @@ def login_page():
     st.markdown("""
     <div class="login-container">
         <div class="brand-logo">
-            <span class="pz-red">PRUDENTIAL</span>
-            <span class="pz-gold">ZENITH</span>
-            <br>
-            <span style="font-size: 14px; color: #666; letter-spacing: 2px;">LIFE INSURANCE</span>
+            <span class="pz-red">PRUDENTIAL</span><br>
+            <span class="pz-dark">ZENITH</span><br>
+            <span class="pz-sub">LIFE INSURANCE</span>
         </div>
         <h1>Welcome Back</h1>
         <p class="subtitle">Sign in to access your expense management dashboard</p>
     """, unsafe_allow_html=True)
     
-    username = st.text_input("Username", placeholder="Enter your username", key="login_username")
-    password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password")
+    username = st.text_input("Username", placeholder="Enter your username", key="login_username", label_visibility="collapsed")
+    password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password", label_visibility="collapsed")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -320,7 +347,7 @@ def login_page():
                 st.error("❌ Invalid username or password")
     
     st.markdown("""
-        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 13px;">
+        <div style="text-align: center; margin-top: 15px; color: #999; font-size: 12px;">
             <p>Contact your system administrator for access</p>
         </div>
     </div>
@@ -328,10 +355,11 @@ def login_page():
 
 def register_page():
     st.markdown("""
-    <div class="login-container">
+    <div class="login-container" style="max-width: 500px !important;">
         <div class="brand-logo">
-            <span class="pz-red">PRUDENTIAL</span>
-            <span class="pz-gold">ZENITH</span>
+            <span class="pz-red">PRUDENTIAL</span><br>
+            <span class="pz-dark">ZENITH</span><br>
+            <span class="pz-sub">LIFE INSURANCE</span>
         </div>
         <h1>Create Account</h1>
         <p class="subtitle">Register for expense management access</p>
@@ -424,9 +452,9 @@ def create_request():
             
             budgeted = EXPENSE_BUDGET.get(expense_line, 0)
             st.info(f"""
-                **💰 Budget Information (NGN'millions):**
-                - **Budgeted Cost:** {budgeted:,.2f}
-                - **Current Balance:** {budgeted:,.2f}
+                **💰 Budget Information:**
+                - **Budgeted Cost:** NGN {budgeted:,.2f}
+                - **Current Balance:** NGN {budgeted:,.2f}
             """)
         
         submitted = st.form_submit_button("Submit Requisition", use_container_width=True)
@@ -500,9 +528,28 @@ def view_requests():
                     pending_for_user.append(req)
                     break
     
-    # Show pending approvals notification
+    # Show pending approvals notification with action buttons
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
+        
+        # Quick approval cards
+        st.subheader("📋 Your Pending Approvals - Click to Review")
+        for req in pending_for_user:
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([2, 3, 2, 2, 1])
+                with col1:
+                    st.markdown(f"**{req['id']}**")
+                with col2:
+                    st.markdown(f"{req['expense_line'][:30]}...")
+                with col3:
+                    st.markdown(f"**NGN {req['net_amount']:,.2f}**")
+                with col4:
+                    st.markdown(f"👤 {req['requested_by']}")
+                with col5:
+                    if st.button(f"Review", key=f"quick_review_{req['id']}"):
+                        st.session_state.selected_request = req['id']
+                        st.rerun()
+            st.markdown("---")
     
     # Filter options
     col1, col2, col3 = st.columns(3)
@@ -510,11 +557,12 @@ def view_requests():
         status_filter = st.selectbox("Status", ["All", "Pending", "Approved", "Rejected", "More Info"])
     with col2:
         if st.session_state.admin_right:
-            dept_filter = st.selectbox("Department", ["All"] + list(set([r['department'] for r in st.session_state.requests])) if st.session_state.requests else ["All"])
+            all_depts = list(set([r['department'] for r in st.session_state.requests])) if st.session_state.requests else []
+            dept_filter = st.selectbox("Department", ["All"] + all_depts)
         else:
             dept_filter = st.session_state.user_department
     with col3:
-        show_pending_only = st.checkbox("Show only my pending approvals")
+        show_pending_only = st.checkbox("Show only my pending approvals", value=bool(pending_for_user))
     
     # Filter requests
     filtered_requests = st.session_state.requests
@@ -522,7 +570,7 @@ def view_requests():
         filtered_requests = [r for r in filtered_requests if r['status'] == status_filter]
     if dept_filter != "All":
         filtered_requests = [r for r in filtered_requests if r['department'] == dept_filter]
-    if show_pending_only and pending_for_user:
+    if show_pending_only:
         filtered_requests = [r for r in filtered_requests if r in pending_for_user]
     
     if filtered_requests:
@@ -572,26 +620,36 @@ def view_requests():
                     status_emoji = "✅" if approval['status'] == 'Approved' else "❌" if approval['status'] == 'Rejected' else "⏳"
                     status_color = "#28a745" if approval['status'] == 'Approved' else "#dc3545" if approval['status'] == 'Rejected' else "#ffc107"
                     is_current = idx == request['current_level'] and request['status'] == 'Pending'
+                    is_approver = approval['approver'] == user_role and approval['status'] == 'Pending'
                     
                     with col:
                         st.markdown(f"""
-                            <div style="background: {'#f8f9fa' if not is_current else '#fff3cd'}; 
+                            <div style="background: {'#fff3cd' if is_current else '#f8f9fa' if is_approver else 'white'}; 
                                         padding: 10px; 
                                         border-radius: 10px; 
-                                        border: {f'2px solid {status_color}' if is_current else '1px solid #ddd'};
-                                        text-align: center;">
+                                        border: {f'2px solid #ED1C24' if is_approver else f'2px solid {status_color}' if is_current else '1px solid #ddd'};
+                                        text-align: center;
+                                        min-height: 80px;">
                                 <div style="font-size: 20px;">{status_emoji}</div>
                                 <div style="font-weight: 600; font-size: 12px;">{approval['approver']}</div>
                                 <div style="font-size: 11px; color: {status_color};">{approval['status']}</div>
                                 <div style="font-size: 10px; color: #999;">{approval['date']}</div>
-                                {f'<div style="font-size: 10px; color: #ED1C24; font-weight: 600;">⬅️ Current</div>' if is_current else ''}
+                                {f'<div style="font-size: 10px; color: #ED1C24; font-weight: 600;">⬅️ Your Action Required</div>' if is_approver else ''}
+                                {f'<div style="font-size: 10px; color: #ffc107; font-weight: 600;">⬅️ Current</div>' if is_current and not is_approver else ''}
                             </div>
                         """, unsafe_allow_html=True)
                 
-                # Approval actions
-                if request in pending_for_user:
+                # Approval actions - Show if user is the current approver
+                current_level = request['current_level']
+                is_approver = False
+                if current_level < len(request['approvals']):
+                    if request['approvals'][current_level]['approver'] == user_role and request['approvals'][current_level]['status'] == 'Pending':
+                        is_approver = True
+                
+                if is_approver:
                     st.markdown("---")
                     st.markdown("**✋ Your Approval Required**")
+                    st.info(f"You are the current approver for this request.")
                     
                     with st.form(key=f"approval_form_{request['id']}"):
                         action = st.radio("Action", ["Approve", "Reject", "Request More Information"], 
@@ -599,17 +657,18 @@ def view_requests():
                         comments = st.text_area("Comments", placeholder="Add your comments here...", key=f"comments_{request['id']}")
                         
                         if st.form_submit_button("Submit Decision", use_container_width=True):
-                            # Find current approval level
-                            current_level = request['current_level']
+                            # Update the approval
                             request['approvals'][current_level]['status'] = action
                             request['approvals'][current_level]['date'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                             
                             if action == "Approve":
+                                # Check if this is the last approval
                                 if current_level == len(request['approvals']) - 1:
                                     request['status'] = 'Approved'
                                     st.success(f"✅ Request {request['id']} has been FULLY APPROVED!")
                                     st.balloons()
                                 else:
+                                    # Move to next approver
                                     request['current_level'] = current_level + 1
                                     request['status'] = 'Pending'
                                     # Notify next approver
@@ -656,7 +715,7 @@ def generate_html_report(request_data):
         <style>
             body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
             .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
-            .header {{ background: linear-gradient(135deg, #ED1C24, #cc0000); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .header {{ background: #ED1C24; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
             .header h1 {{ margin: 0; font-size: 24px; }}
             .header h2 {{ margin: 5px 0 0; font-weight: 300; font-size: 16px; }}
             .content {{ padding: 20px; }}
@@ -669,13 +728,12 @@ def generate_html_report(request_data):
             th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
             th {{ background-color: #ED1C24; color: white; }}
             .footer {{ margin-top: 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }}
-            .gold {{ color: #FFD700; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>🏦 PRUDENTIAL <span class="gold">ZENITH</span></h1>
+                <h1>🏦 PRUDENTIAL ZENITH</h1>
                 <h2>Life Insurance - Expense Requisition Report</h2>
             </div>
             <div class="content">
@@ -787,7 +845,7 @@ def vendor_management():
                 status_counts = df['status'].value_counts()
                 fig = px.pie(values=status_counts.values, names=status_counts.index, 
                            title="Vendor Status Distribution",
-                           color_discrete_sequence=['#ED1C24', '#FFD700', '#28a745', '#17a2b8'])
+                           color_discrete_sequence=['#ED1C24', '#1a1a1a', '#28a745', '#17a2b8'])
                 fig.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig, use_container_width=True)
             
@@ -815,7 +873,7 @@ def dashboard():
                     pending_for_user.append(req)
                     break
     
-    # Display notifications
+    # Display notifications with quick actions
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
         
@@ -823,17 +881,20 @@ def dashboard():
         st.subheader("📋 Quick Actions - Pending Approvals")
         for req in pending_for_user:
             with st.container():
-                col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+                col1, col2, col3, col4, col5 = st.columns([2, 3, 2, 2, 1])
                 with col1:
                     st.markdown(f"**{req['id']}**")
                 with col2:
-                    st.markdown(f"{req['expense_line'][:25]}...")
+                    st.markdown(f"{req['expense_line'][:30]}...")
                 with col3:
-                    st.markdown(f"NGN {req['net_amount']:,.2f}")
+                    st.markdown(f"**NGN {req['net_amount']:,.2f}**")
                 with col4:
-                    if st.button(f"Review", key=f"quick_review_{req['id']}"):
-                        # Redirect to view requests
+                    st.markdown(f"👤 {req['requested_by']}")
+                with col5:
+                    if st.button(f"Review", key=f"dash_review_{req['id']}"):
                         st.session_state.selected_request = req['id']
+                        # Navigate to view requests
+                        st.session_state.dashboard_nav = "View Requests"
                         st.rerun()
             st.markdown("---")
     
@@ -894,7 +955,7 @@ def dashboard():
             fig = px.bar(x=dept_counts.index, y=dept_counts.values, 
                         title="Requests by Department",
                         color=dept_counts.values,
-                        color_continuous_scale=['#FFD700', '#ED1C24'],
+                        color_continuous_scale=['#1a1a1a', '#ED1C24'],
                         labels={'x': 'Department', 'y': 'Number of Requests'})
             fig.update_layout(showlegend=False, height=400)
             st.plotly_chart(fig, use_container_width=True)
@@ -912,7 +973,7 @@ def dashboard():
                 if not expense_summary.empty:
                     fig = go.Figure(data=[
                         go.Bar(name='Budget', x=expense_summary['expense_line'], y=expense_summary['budget'], 
-                               marker_color='#FFD700'),
+                               marker_color='#1a1a1a'),
                         go.Bar(name='Actual', x=expense_summary['expense_line'], y=expense_summary['net_amount'],
                                marker_color='#ED1C24')
                     ])
@@ -926,26 +987,6 @@ def dashboard():
         recent = pd.DataFrame(st.session_state.requests[-5:])
         st.dataframe(recent[['id', 'expense_line', 'total_amount', 'status', 'requested_by', 'date']], 
                     use_container_width=True)
-    
-    # Approval timeline
-    if st.session_state.requests:
-        st.subheader("⏱️ Approval Activity")
-        approval_data = []
-        for req in st.session_state.requests:
-            for approval in req['approvals']:
-                if approval['status'] != 'Pending' and approval['date']:
-                    approval_data.append({
-                        'Request': req['id'],
-                        'Approver': approval['approver'],
-                        'Status': approval['status'],
-                        'Date': approval['date']
-                    })
-        
-        if approval_data:
-            df_approvals = pd.DataFrame(approval_data)
-            df_approvals['Date'] = pd.to_datetime(df_approvals['Date'])
-            df_approvals = df_approvals.sort_values('Date', ascending=False).head(10)
-            st.dataframe(df_approvals, use_container_width=True)
 
 def user_management():
     if not st.session_state.admin_right:
@@ -1005,9 +1046,9 @@ def main():
     # Custom sidebar
     st.sidebar.markdown("""
         <div style="padding: 20px 0; text-align: center; border-bottom: 2px solid #ED1C24; margin-bottom: 20px;">
-            <div style="font-size: 24px; font-weight: 800; color: #ED1C24;">PRUDENTIAL</div>
-            <div style="font-size: 24px; font-weight: 800; color: #FFD700;">ZENITH</div>
-            <div style="font-size: 12px; color: #666; margin-top: 5px;">LIFE INSURANCE</div>
+            <div style="font-size: 22px; font-weight: 800; color: #ED1C24;">PRUDENTIAL</div>
+            <div style="font-size: 22px; font-weight: 800; color: #1a1a1a;">ZENITH</div>
+            <div style="font-size: 11px; color: #666; margin-top: 3px; letter-spacing: 2px;">LIFE INSURANCE</div>
         </div>
     """, unsafe_allow_html=True)
     
@@ -1020,11 +1061,11 @@ def main():
     else:
         # User info in sidebar
         st.sidebar.markdown(f"""
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <div style="font-weight: 600; color: #1a1a1a;">👋 Welcome</div>
-                <div style="font-size: 16px; font-weight: 700; color: #ED1C24;">{st.session_state.username}</div>
-                <div style="font-size: 13px; color: #666;">{st.session_state.user_role}</div>
-                <div style="font-size: 12px; color: #999;">{st.session_state.user_department}</div>
+            <div style="background: #f8f9fa; padding: 12px 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="font-weight: 600; color: #1a1a1a; font-size: 13px;">👋 Welcome</div>
+                <div style="font-size: 15px; font-weight: 700; color: #ED1C24;">{st.session_state.username}</div>
+                <div style="font-size: 12px; color: #666;">{st.session_state.user_role}</div>
+                <div style="font-size: 11px; color: #999;">{st.session_state.user_department}</div>
             </div>
         """, unsafe_allow_html=True)
         
