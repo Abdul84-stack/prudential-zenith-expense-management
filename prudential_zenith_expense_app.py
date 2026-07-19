@@ -1,4 +1,4 @@
-# app.py - Main application file
+# app.py - Modified version without ReportLab
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -6,11 +6,6 @@ from datetime import datetime, date
 import hashlib
 import json
 import os
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
 import io
 import base64
 from PIL import Image
@@ -96,89 +91,85 @@ def get_user_data(username):
         return DEFAULT_USERS[username]
     return None
 
-def create_pdf_report(request_data):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    styles = getSampleStyleSheet()
-    story = []
+def generate_html_report(request_data):
+    """Generate an HTML report instead of PDF"""
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; }}
+            .header {{ background-color: #1E88E5; color: white; padding: 20px; text-align: center; }}
+            .content {{ margin: 20px 0; }}
+            .field {{ margin: 10px 0; }}
+            .label {{ font-weight: bold; display: inline-block; width: 150px; }}
+            .status-approved {{ color: green; font-weight: bold; }}
+            .status-pending {{ color: orange; font-weight: bold; }}
+            .status-rejected {{ color: red; font-weight: bold; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+            th {{ background-color: #1E88E5; color: white; }}
+            .footer {{ margin-top: 30px; text-align: center; font-size: 12px; color: #666; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Prudential Zenith Life Insurance</h1>
+            <h2>Expense Requisition Report</h2>
+        </div>
+        <div class="content">
+            <div class="field"><span class="label">Request ID:</span> {request_data.get('id', 'N/A')}</div>
+            <div class="field"><span class="label">Request Type:</span> {request_data.get('request_type', 'N/A')}</div>
+            <div class="field"><span class="label">Expense Line:</span> {request_data.get('expense_line', 'N/A')}</div>
+            <div class="field"><span class="label">Total Amount:</span> NGN {request_data.get('total_amount', 0):,.2f}</div>
+            <div class="field"><span class="label">VAT (7.5%):</span> NGN {request_data.get('vat', 0):,.2f}</div>
+            <div class="field"><span class="label">WHT:</span> NGN {request_data.get('wht', 0):,.2f}</div>
+            <div class="field"><span class="label">Net Amount:</span> NGN {request_data.get('net_amount', 0):,.2f}</div>
+            <div class="field"><span class="label">Vendor:</span> {request_data.get('vendor', 'N/A')}</div>
+            <div class="field"><span class="label">Department:</span> {request_data.get('department', 'N/A')}</div>
+            <div class="field"><span class="label">Status:</span> <span class="status-{request_data.get('status', '').lower()}">{request_data.get('status', 'N/A')}</span></div>
+            <div class="field"><span class="label">Requested By:</span> {request_data.get('requested_by', 'N/A')}</div>
+            <div class="field"><span class="label">Date:</span> {request_data.get('date', 'N/A')}</div>
+            <div class="field"><span class="label">Justification:</span> {request_data.get('justification', 'N/A')}</div>
+            
+            <h3>Approval Chain</h3>
+            <table>
+                <tr>
+                    <th>Level</th>
+                    <th>Approver</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+    """
     
-    # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=1
-    )
-    story.append(Paragraph("Expense Requisition Report", title_style))
-    story.append(Spacer(1, 12))
-    
-    # Request details
-    data = [
-        ['Field', 'Value'],
-        ['Request ID', request_data.get('id', 'N/A')],
-        ['Request Type', request_data.get('request_type', 'N/A')],
-        ['Expense Line', request_data.get('expense_line', 'N/A')],
-        ['Total Amount', f"NGN {request_data.get('total_amount', 0):,.2f}"],
-        ['VAT (7.5%)', f"NGN {request_data.get('vat', 0):,.2f}"],
-        ['WHT', f"NGN {request_data.get('wht', 0):,.2f}"],
-        ['Net Amount', f"NGN {request_data.get('net_amount', 0):,.2f}"],
-        ['Vendor', request_data.get('vendor', 'N/A')],
-        ['Department', request_data.get('department', 'N/A')],
-        ['Status', request_data.get('status', 'N/A')],
-        ['Requested By', request_data.get('requested_by', 'N/A')],
-        ['Date', request_data.get('date', 'N/A')],
-    ]
-    
-    t = Table(data, colWidths=[200, 300])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 14),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
-    story.append(t)
-    
-    # Approval chain
-    story.append(Spacer(1, 20))
-    story.append(Paragraph("Approval Chain", styles['Heading2']))
-    story.append(Spacer(1, 10))
-    
-    approval_data = [['Level', 'Approver', 'Status', 'Date']]
     for approval in request_data.get('approvals', []):
-        approval_data.append([
-            approval.get('level', ''),
-            approval.get('approver', ''),
-            approval.get('status', 'Pending'),
-            approval.get('date', '')
-        ])
+        status_color = 'green' if approval['status'] == 'Approved' else 'red' if approval['status'] == 'Rejected' else 'orange'
+        html += f"""
+                <tr>
+                    <td>{approval.get('level', '') + 1}</td>
+                    <td>{approval.get('approver', '')}</td>
+                    <td style="color: {status_color};">{approval.get('status', 'Pending')}</td>
+                    <td>{approval.get('date', '')}</td>
+                </tr>
+        """
     
-    t2 = Table(approval_data, colWidths=[80, 150, 100, 150])
-    t2.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black)
-    ]))
-    story.append(t2)
-    
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    html += f"""
+            </table>
+        </div>
+        <div class="footer">
+            <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>&copy; 2024 Prudential Zenith Life Insurance. All rights reserved.</p>
+        </div>
+    </body>
+    </html>
+    """
+    return html
 
 def login_page():
     st.markdown("""
         <style>
-        .main {
-            padding: 0;
-        }
-        .stApp {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+        .main { padding: 0; }
+        .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .login-container {
             max-width: 400px;
             margin: 100px auto;
@@ -187,19 +178,15 @@ def login_page():
             border-radius: 10px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        .login-container h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
+        .login-container h1 { text-align: center; color: #333; margin-bottom: 30px; }
         </style>
     """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.image("https://via.placeholder.com/150x50?text=Prudential+Zenith", use_column_width=True)
-        st.markdown("<h1 style='text-align: center;'>Welcome Back</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>Prudential Zenith</h1>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #666;'>Expense Management</h2>", unsafe_allow_html=True)
         
         username = st.text_input("Username", placeholder="Enter your username")
         password = st.text_input("Password", type="password", placeholder="Enter your password")
@@ -274,7 +261,6 @@ def register_page():
             elif username in DEFAULT_USERS or username in st.session_state.users:
                 st.error("Username already exists!")
             else:
-                # Save user
                 st.session_state.users[username] = {
                     'full_name': full_name,
                     'password': hash_password(password),
@@ -304,7 +290,6 @@ def create_request():
             vendor = st.selectbox("Vendor", list(VENDOR_DATA.keys()))
             total_amount = st.number_input("Total Amount (NGN)", min_value=0.0, step=1000.0)
             
-            # Vendor information display
             if vendor:
                 vendor_info = VENDOR_DATA.get(vendor, {})
                 st.info(f"""
@@ -321,7 +306,6 @@ def create_request():
             justification = st.text_area("Justification")
             supporting_doc = st.file_uploader("Supporting Document (Invoice)", type=['pdf', 'jpg', 'png'])
             
-            # Budget information
             budgeted = EXPENSE_BUDGET.get(expense_line, 0)
             st.info(f"""
                 **Budget Information:**
@@ -335,7 +319,6 @@ def create_request():
             if total_amount <= 0:
                 st.error("Total amount must be greater than 0")
             else:
-                # Calculate VAT and WHT
                 vat_amount = total_amount * 0.075 if vat else 0
                 wht_amount = 0
                 if wht_rate != "None":
@@ -344,7 +327,6 @@ def create_request():
                 
                 net_amount = total_amount + vat_amount - wht_amount
                 
-                # Create request
                 request = {
                     'id': f"REQ-{len(st.session_state.requests) + 1:04d}",
                     'request_type': request_type,
@@ -364,7 +346,6 @@ def create_request():
                     'current_level': 0
                 }
                 
-                # Determine approval chain
                 approval_chain = get_approval_chain(st.session_state.user_department, net_amount)
                 request['approval_chain'] = approval_chain
                 request['approvals'] = [{'level': i, 'approver': approver, 'status': 'Pending', 'date': ''} 
@@ -375,7 +356,6 @@ def create_request():
                 st.rerun()
 
 def get_approval_chain(department, amount):
-    """Get the approval chain based on department and amount"""
     if department == 'Administration':
         chain = ['Head of Admin']
         if amount > 250000:
@@ -386,13 +366,11 @@ def get_approval_chain(department, amount):
         if amount > 5000000:
             chain.append('CFO/ED')
         return chain
-    # Add other department approval chains here
     return ['Head of Department', 'Head of Finance', 'Head of Compliance', 'Head of Internal Control']
 
 def view_requests():
     st.header("View Requests")
     
-    # Filter options
     col1, col2, col3 = st.columns(3)
     with col1:
         status_filter = st.selectbox("Status", ["All", "Pending", "Approved", "Rejected", "More Info"])
@@ -402,20 +380,17 @@ def view_requests():
         else:
             dept_filter = st.session_state.user_department
     
-    # Filter requests
     filtered_requests = st.session_state.requests
     if status_filter != "All":
         filtered_requests = [r for r in filtered_requests if r['status'] == status_filter]
     if dept_filter != "All":
         filtered_requests = [r for r in filtered_requests if r['department'] == dept_filter]
     
-    # Display requests in a table
     if filtered_requests:
         df = pd.DataFrame(filtered_requests)
         display_cols = ['id', 'request_type', 'expense_line', 'total_amount', 'net_amount', 'status', 'requested_by', 'date']
         st.dataframe(df[display_cols], use_container_width=True)
         
-        # Request details and actions
         for request in filtered_requests:
             with st.expander(f"{request['id']} - {request['expense_line']} - {request['status']}"):
                 col1, col2 = st.columns(2)
@@ -435,7 +410,6 @@ def view_requests():
                     st.write(f"**Budgeted:** NGN {request['budgeted']:,.2f}")
                     st.write(f"**Budget Balance:** NGN {request['budgeted'] - request['net_amount']:,.2f}")
                 
-                # Approval chain display
                 st.subheader("Approval Chain")
                 approval_data = []
                 for approval in request['approvals']:
@@ -444,7 +418,6 @@ def view_requests():
                 
                 st.table(pd.DataFrame(approval_data, columns=['Level', 'Approver', 'Status', 'Date']))
                 
-                # Approval actions (if user is an approver)
                 user_role = st.session_state.user_role
                 current_level = request['current_level']
                 if current_level < len(request['approvals']) and request['approvals'][current_level]['approver'] == user_role:
@@ -453,15 +426,12 @@ def view_requests():
                     comments = st.text_area("Comments", key=f"comments_{request['id']}")
                     
                     if st.button("Submit Action", key=f"submit_{request['id']}"):
-                        # Update approval
                         request['approvals'][current_level]['status'] = action
                         request['approvals'][current_level]['date'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                         
                         if action == "Approve":
                             if current_level == len(request['approvals']) - 1:
                                 request['status'] = 'Approved'
-                                # Update budget balance
-                                # (In production, this would update a database)
                             else:
                                 request['current_level'] = current_level + 1
                         elif action == "Reject":
@@ -472,15 +442,14 @@ def view_requests():
                         st.success(f"Action submitted for {request['id']}")
                         st.rerun()
                 
-                # Generate PDF report
                 if request['status'] == 'Approved':
-                    if st.button(f"Generate PDF Report for {request['id']}"):
-                        pdf = create_pdf_report(request)
+                    if st.button(f"Generate Report for {request['id']}"):
+                        html_report = generate_html_report(request)
                         st.download_button(
-                            label="Download PDF",
-                            data=pdf,
-                            file_name=f"{request['id']}_report.pdf",
-                            mime="application/pdf"
+                            label="Download Report (HTML)",
+                            data=html_report,
+                            file_name=f"{request['id']}_report.html",
+                            mime="text/html"
                         )
     else:
         st.info("No requests found")
@@ -503,13 +472,11 @@ def vendor_management():
                 tin_number = st.text_input("TIN Number")
             
             with col2:
-                # Bank Information
                 st.subheader("Bank Information")
                 account_name = st.text_input("Account Name")
                 account_number = st.text_input("Account Number")
                 service_provided = st.text_area("Service Provided")
                 
-                # Supporting Documents
                 st.subheader("Supporting Documents")
                 cac_doc = st.file_uploader("CAC Document", type=['pdf'], key="cac")
                 pca_doc = st.file_uploader("PCA Third Party Profiler", type=['pdf'], key="pca")
@@ -547,12 +514,10 @@ def vendor_management():
             df = pd.DataFrame(st.session_state.vendors)
             st.subheader("Vendor Analytics")
             
-            # Status distribution
             status_counts = df['status'].value_counts()
             fig = px.pie(values=status_counts.values, names=status_counts.index, title="Vendor Status Distribution")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Approved vendors list
             st.subheader("Approved Vendors")
             approved_vendors = [v for v in st.session_state.vendors if v['status'] == 'Approved']
             if approved_vendors:
@@ -565,7 +530,6 @@ def vendor_management():
 def dashboard():
     st.title("Expense Management Dashboard")
     
-    # Summary metrics
     total_requests = len(st.session_state.requests)
     pending_requests = len([r for r in st.session_state.requests if r['status'] == 'Pending'])
     approved_requests = len([r for r in st.session_state.requests if r['status'] == 'Approved'])
@@ -581,10 +545,8 @@ def dashboard():
     with col4:
         st.metric("Total Spend", f"NGN {total_amount:,.2f}")
     
-    # Charts
     col1, col2 = st.columns(2)
     with col1:
-        # Requests by department
         if st.session_state.requests:
             df = pd.DataFrame(st.session_state.requests)
             dept_counts = df['department'].value_counts()
@@ -592,7 +554,6 @@ def dashboard():
             st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        # Budget vs Actual
         if st.session_state.requests:
             approved = [r for r in st.session_state.requests if r['status'] == 'Approved']
             if approved:
@@ -609,7 +570,6 @@ def dashboard():
                     fig.update_layout(title="Budget vs Actual by Expense Line", barmode='group')
                     st.plotly_chart(fig, use_container_width=True)
     
-    # Recent requests
     st.subheader("Recent Requests")
     if st.session_state.requests:
         recent = pd.DataFrame(st.session_state.requests[-5:])
@@ -670,24 +630,20 @@ def main():
         layout="wide"
     )
     
-    # Sidebar logo
     st.sidebar.image("https://via.placeholder.com/200x60?text=Prudential+Zenith", use_column_width=True)
     
     if not st.session_state.authenticated:
-        # Show login/register
         login_tab, register_tab = st.tabs(["Login", "Register"])
         with login_tab:
             login_page()
         with register_tab:
             register_page()
     else:
-        # Navigation
         st.sidebar.markdown(f"**Welcome, {st.session_state.username}**")
         st.sidebar.markdown(f"**Role:** {st.session_state.user_role}")
         st.sidebar.markdown(f"**Department:** {st.session_state.user_department}")
         st.sidebar.markdown("---")
         
-        # Navigation menu
         with st.sidebar:
             selected = option_menu(
                 menu_title="Main Menu",
@@ -704,7 +660,6 @@ def main():
             st.session_state.user_department = None
             st.rerun()
         
-        # Page routing
         if selected == "Dashboard":
             dashboard()
         elif selected == "Create Request":
