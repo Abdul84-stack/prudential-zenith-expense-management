@@ -1,4 +1,4 @@
-# app.py - Fixed Approval Navigation with Working Review Button
+# app.py - Fixed Approval Workflow
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -21,10 +21,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Brand Colors
+# Custom CSS
 st.markdown("""
 <style>
-    /* Prudential Zenith Brand Colors */
     :root {
         --pz-red: #ED1C24;
         --pz-dark: #1a1a1a;
@@ -36,7 +35,6 @@ st.markdown("""
         background-color: #f5f5f5;
     }
     
-    /* Login Page Styling */
     .login-container {
         max-width: 380px !important;
         margin: 60px auto !important;
@@ -88,7 +86,6 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Metric Cards */
     .metric-card {
         background: white;
         padding: 18px 20px;
@@ -116,7 +113,6 @@ st.markdown("""
         font-weight: 500;
     }
     
-    /* Approval Chain Cards */
     .approval-card {
         padding: 12px;
         border-radius: 10px;
@@ -164,7 +160,6 @@ st.markdown("""
         background: #fff0f0;
     }
     
-    /* Pending Approval Card */
     .pending-card {
         background: #FFF8F8;
         border: 1px solid #ED1C24;
@@ -217,7 +212,7 @@ if 'notifications' not in st.session_state:
 if 'approve_request_id' not in st.session_state:
     st.session_state.approve_request_id = None
 
-# Default users with department mapping
+# Default users
 DEFAULT_USERS = {
     'head_admin': {'password': '123456', 'role': 'Head of Admin', 'department': 'Administration', 'admin_right': True},
     'head_it': {'password': '123456', 'role': 'Head of IT', 'department': 'IT', 'admin_right': True},
@@ -232,7 +227,7 @@ DEFAULT_USERS = {
     'head_internal_control': {'password': '123456', 'role': 'Head of Internal Control', 'department': 'Internal Control & Risk', 'admin_right': False},
 }
 
-# Updated Budget Data (Actual NGN values)
+# Budget Data
 EXPENSE_BUDGET = {
     '430106 WEEKEND WORK ALLOWANCE': 3042000.00,
     '430608 PRINTING & STATIONERY': 29849000.00,
@@ -521,7 +516,7 @@ def view_requests():
                     pending_for_user.append(req)
                     break
     
-    # Show pending approvals with working Review buttons
+    # Show pending approvals
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
         
@@ -538,7 +533,6 @@ def view_requests():
             with col4:
                 st.markdown(f"👤 {req['requested_by']}")
             with col5:
-                # This button sets the request ID for approval and reruns
                 if st.button("Review", key=f"review_btn_{req['id']}"):
                     st.session_state.approve_request_id = req['id']
                     st.rerun()
@@ -577,19 +571,16 @@ def view_requests():
         
         # Detailed view for each request
         for request in filtered_requests:
-            # Check if this request should be expanded (either pending or selected for approval)
-            is_expanded = (request in pending_for_user) or (st.session_state.approve_request_id == request['id'])
+            # Check if this request should be expanded
+            is_pending_for_user = request in pending_for_user
+            is_selected = st.session_state.approve_request_id == request['id']
+            is_expanded = is_pending_for_user or is_selected
             
             expander_title = f"{request['id']} - {request['expense_line'][:30]}... - {request['status']}"
-            if request in pending_for_user:
+            if is_pending_for_user:
                 expander_title = f"🔔 {expander_title}"
             
             with st.expander(expander_title, expanded=is_expanded):
-                # Clear the approval request ID after showing
-                if st.session_state.approve_request_id == request['id']:
-                    # Don't clear immediately, keep it expanded
-                    pass
-                
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown(f"**📌 Request Details**")
@@ -637,38 +628,48 @@ def view_requests():
                                 <div class="status-text" style="color: {status_color};">{approval['status']}</div>
                                 <div class="date-text">{approval['date']}</div>
                                 {f'<div class="action-required">⬅️ Your Action Required</div>' if is_approver else ''}
+                                {f'<div class="action-required" style="color: #ffc107;">⬅️ Current Step</div>' if is_current and not is_approver else ''}
                             </div>
                         """, unsafe_allow_html=True)
                 
                 # Approval form - Show if user is the current approver
                 current_level = request['current_level']
                 is_approver = False
+                
+                # Check if current level is valid and user is the approver
                 if current_level < len(request['approvals']):
                     if request['approvals'][current_level]['approver'] == user_role and request['approvals'][current_level]['status'] == 'Pending':
                         is_approver = True
                 
+                # DEBUG: Show current status (remove in production)
+                # st.caption(f"Debug: current_level={current_level}, total_approvals={len(request['approvals'])}, is_approver={is_approver}")
+                
                 if is_approver:
                     st.markdown("---")
-                    st.markdown("**✋ Your Approval Required**")
-                    st.info(f"You are the current approver for this request.")
+                    st.markdown("## ✋ Your Approval Required")
+                    st.info(f"You are the current approver for this request. Please review the details and take action.")
                     
                     with st.form(key=f"approval_form_{request['id']}"):
-                        action = st.radio("Action", ["Approve", "Reject", "Request More Information"], 
+                        action = st.radio("Select Action", ["Approve", "Reject", "Request More Information"], 
                                         key=f"action_{request['id']}", horizontal=True)
-                        comments = st.text_area("Comments", placeholder="Add your comments here...", key=f"comments_{request['id']}")
+                        comments = st.text_area("Comments / Notes", placeholder="Add your comments here...", key=f"comments_{request['id']}")
                         
                         if st.form_submit_button("Submit Decision", use_container_width=True):
+                            # Update the approval
                             request['approvals'][current_level]['status'] = action
                             request['approvals'][current_level]['date'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                             
                             if action == "Approve":
+                                # Check if this is the last approval
                                 if current_level == len(request['approvals']) - 1:
                                     request['status'] = 'Approved'
                                     st.success(f"✅ Request {request['id']} has been FULLY APPROVED!")
                                     st.balloons()
                                 else:
+                                    # Move to next approver
                                     request['current_level'] = current_level + 1
                                     request['status'] = 'Pending'
+                                    # Notify next approver
                                     next_approver = request['approvals'][current_level + 1]['approver']
                                     st.session_state.notifications.append({
                                         'request_id': request['id'],
@@ -691,6 +692,10 @@ def view_requests():
                             # Clear the approval request ID after action
                             st.session_state.approve_request_id = None
                             st.rerun()
+                else:
+                    # Show who the current approver is
+                    if current_level < len(request['approvals']):
+                        st.info(f"⏳ Currently awaiting approval from: **{request['approvals'][current_level]['approver']}**")
                 
                 # Generate report for approved requests
                 if request['status'] == 'Approved':
@@ -872,7 +877,7 @@ def dashboard():
                     pending_for_user.append(req)
                     break
     
-    # Display notifications with quick actions
+    # Display notifications
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
         
