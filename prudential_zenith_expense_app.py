@@ -1,4 +1,4 @@
-# app.py - Fixed HTML Rendering in Approval Chain
+# app.py - Fixed Approval Navigation with Working Review Button
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -32,7 +32,6 @@ st.markdown("""
         --pz-gray: #666666;
     }
     
-    /* Main background */
     .stApp {
         background-color: #f5f5f5;
     }
@@ -155,28 +154,6 @@ st.markdown("""
         margin-top: 3px;
     }
     
-    .approval-card .current-indicator {
-        font-size: 10px;
-        color: #ffc107;
-        font-weight: 600;
-        margin-top: 3px;
-    }
-    
-    .approval-card-approved {
-        border-color: #28a745;
-        background: #f0fff4;
-    }
-    
-    .approval-card-rejected {
-        border-color: #dc3545;
-        background: #fff5f5;
-    }
-    
-    .approval-card-pending {
-        border-color: #ffc107;
-        background: #fffbf0;
-    }
-    
     .approval-card-current {
         border: 2px solid #ED1C24;
         background: #fff8f8;
@@ -202,35 +179,6 @@ st.markdown("""
         transform: translateX(5px);
     }
     
-    /* Status Badges */
-    .status-pending {
-        background: #FFF3CD;
-        color: #856404;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    
-    .status-approved {
-        background: #D4EDDA;
-        color: #155724;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    
-    .status-rejected {
-        background: #F8D7DA;
-        color: #721C24;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    
-    /* Buttons */
     .stButton > button {
         background-color: #ED1C24;
         color: white;
@@ -245,29 +193,6 @@ st.markdown("""
         background-color: #cc0000;
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(237, 28, 36, 0.3);
-    }
-    
-    /* Sidebar */
-    .css-1d391kg {
-        background-color: #1a1a1a;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 6px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: white;
-        border-radius: 8px;
-        padding: 6px 16px;
-        font-weight: 500;
-        font-size: 13px;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background-color: #ED1C24;
-        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -289,10 +214,8 @@ if 'users' not in st.session_state:
     st.session_state.users = {}
 if 'notifications' not in st.session_state:
     st.session_state.notifications = []
-if 'selected_request' not in st.session_state:
-    st.session_state.selected_request = None
-if 'active_tab' not in st.session_state:
-    st.session_state.active_tab = "Dashboard"
+if 'approve_request_id' not in st.session_state:
+    st.session_state.approve_request_id = None
 
 # Default users with department mapping
 DEFAULT_USERS = {
@@ -357,25 +280,19 @@ def get_approval_chain(department, amount):
     """Get approval chain based on department and amount"""
     base_chain = DEPARTMENT_APPROVAL_MAP.get(department, ['Head of Department', 'Head of Compliance', 'Head of Internal Control'])
     
-    # Filter chain based on amount thresholds
     chain = []
     for approver in base_chain:
-        # Skip Investment for small amounts
         if approver == 'Head of Investment' and amount <= 250000:
             continue
-        # Skip Finance for large amounts
         if approver == 'Head of Finance' and amount > 250000:
             continue
-        # Skip CFO for amounts <= 5,000,000
         if approver == 'CFO/ED' and amount <= 5000000:
             continue
         chain.append(approver)
     
-    # Add CFO for large amounts
     if amount > 5000000 and 'CFO/ED' not in chain:
         chain.append('CFO/ED')
     
-    # Ensure minimum chain
     if not chain:
         chain = ['Head of Department']
     
@@ -551,7 +468,6 @@ def create_request():
                 
                 net_amount = total_amount + vat_amount - wht_amount
                 
-                # Get approval chain
                 approval_chain = get_approval_chain(st.session_state.user_department, net_amount)
                 
                 request = {
@@ -578,7 +494,6 @@ def create_request():
                 
                 st.session_state.requests.append(request)
                 
-                # Create notification for first approver
                 if approval_chain:
                     st.session_state.notifications.append({
                         'request_id': request['id'],
@@ -606,29 +521,28 @@ def view_requests():
                     pending_for_user.append(req)
                     break
     
-    # Show pending approvals notification with action buttons
+    # Show pending approvals with working Review buttons
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
         
-        # Quick approval cards with working review buttons
-        st.subheader("📋 Your Pending Approvals - Click to Review")
+        st.subheader("📋 Your Pending Approvals - Click Review to Approve")
+        
         for req in pending_for_user:
-            with st.container():
-                st.markdown(f"""
-                <div class="pending-card">
-                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                        <div style="font-weight: 700; color: #ED1C24; min-width: 120px;">{req['id']}</div>
-                        <div style="flex: 1; margin: 0 10px; min-width: 150px;">{req['expense_line'][:40]}</div>
-                        <div style="font-weight: 600; color: #1a1a1a; min-width: 120px;">NGN {req['net_amount']:,.2f}</div>
-                        <div style="color: #666; min-width: 100px;">👤 {req['requested_by']}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button(f"📝 Review {req['id']}", key=f"review_{req['id']}"):
-                    st.session_state.selected_request = req['id']
-                    st.session_state.active_tab = "View Requests"
+            col1, col2, col3, col4, col5 = st.columns([2, 3, 2, 2, 1])
+            with col1:
+                st.markdown(f"**{req['id']}**")
+            with col2:
+                st.markdown(f"{req['expense_line'][:35]}...")
+            with col3:
+                st.markdown(f"**NGN {req['net_amount']:,.2f}**")
+            with col4:
+                st.markdown(f"👤 {req['requested_by']}")
+            with col5:
+                # This button sets the request ID for approval and reruns
+                if st.button("Review", key=f"review_btn_{req['id']}"):
+                    st.session_state.approve_request_id = req['id']
                     st.rerun()
+            st.markdown("---")
     
     # Filter options
     col1, col2, col3 = st.columns(3)
@@ -663,16 +577,18 @@ def view_requests():
         
         # Detailed view for each request
         for request in filtered_requests:
-            is_selected = st.session_state.selected_request == request['id']
-            is_pending_for_user = request in pending_for_user
+            # Check if this request should be expanded (either pending or selected for approval)
+            is_expanded = (request in pending_for_user) or (st.session_state.approve_request_id == request['id'])
             
             expander_title = f"{request['id']} - {request['expense_line'][:30]}... - {request['status']}"
-            if is_pending_for_user:
+            if request in pending_for_user:
                 expander_title = f"🔔 {expander_title}"
             
-            with st.expander(expander_title, expanded=(is_selected or is_pending_for_user)):
-                if is_selected:
-                    st.session_state.selected_request = None
+            with st.expander(expander_title, expanded=is_expanded):
+                # Clear the approval request ID after showing
+                if st.session_state.approve_request_id == request['id']:
+                    # Don't clear immediately, keep it expanded
+                    pass
                 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -695,11 +611,10 @@ def view_requests():
                     st.write(f"**Budget Balance:** NGN {balance:,.2f}")
                     st.write(f"**Justification:** {request['justification']}")
                 
-                # Approval chain with visual status - FIXED HTML RENDERING
+                # Approval chain
                 st.markdown("---")
                 st.markdown("**📊 Approval Chain**")
                 
-                # Create approval status cards using Streamlit columns with proper rendering
                 approval_cols = st.columns(len(request['approvals']))
                 
                 for idx, (col, approval) in enumerate(zip(approval_cols, request['approvals'])):
@@ -708,18 +623,11 @@ def view_requests():
                     is_current = idx == request['current_level'] and request['status'] == 'Pending'
                     is_approver = approval['approver'] == user_role and approval['status'] == 'Pending'
                     
-                    # Determine card style
                     card_class = "approval-card"
                     if is_approver:
                         card_class += " approval-card-approver"
                     elif is_current:
                         card_class += " approval-card-current"
-                    elif approval['status'] == 'Approved':
-                        card_class += " approval-card-approved"
-                    elif approval['status'] == 'Rejected':
-                        card_class += " approval-card-rejected"
-                    else:
-                        card_class += " approval-card-pending"
                     
                     with col:
                         st.markdown(f"""
@@ -729,11 +637,10 @@ def view_requests():
                                 <div class="status-text" style="color: {status_color};">{approval['status']}</div>
                                 <div class="date-text">{approval['date']}</div>
                                 {f'<div class="action-required">⬅️ Your Action Required</div>' if is_approver else ''}
-                                {f'<div class="current-indicator">⬅️ Current</div>' if is_current and not is_approver else ''}
                             </div>
                         """, unsafe_allow_html=True)
                 
-                # Approval actions - Show if user is the current approver
+                # Approval form - Show if user is the current approver
                 current_level = request['current_level']
                 is_approver = False
                 if current_level < len(request['approvals']):
@@ -743,7 +650,7 @@ def view_requests():
                 if is_approver:
                     st.markdown("---")
                     st.markdown("**✋ Your Approval Required**")
-                    st.info(f"You are the current approver for this request. Please review the details above and take action below.")
+                    st.info(f"You are the current approver for this request.")
                     
                     with st.form(key=f"approval_form_{request['id']}"):
                         action = st.radio("Action", ["Approve", "Reject", "Request More Information"], 
@@ -781,6 +688,8 @@ def view_requests():
                                 request['status'] = 'More Info'
                                 st.warning(f"ℹ️ More information requested for {request['id']}")
                             
+                            # Clear the approval request ID after action
+                            st.session_state.approve_request_id = None
                             st.rerun()
                 
                 # Generate report for approved requests
@@ -967,24 +876,21 @@ def dashboard():
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
         
-        # Quick approval cards
         st.subheader("📋 Quick Actions - Pending Approvals")
         for req in pending_for_user:
-            with st.container():
-                col1, col2, col3, col4, col5 = st.columns([2, 3, 2, 2, 1])
-                with col1:
-                    st.markdown(f"**{req['id']}**")
-                with col2:
-                    st.markdown(f"{req['expense_line'][:30]}...")
-                with col3:
-                    st.markdown(f"**NGN {req['net_amount']:,.2f}**")
-                with col4:
-                    st.markdown(f"👤 {req['requested_by']}")
-                with col5:
-                    if st.button(f"Review", key=f"dash_review_{req['id']}"):
-                        st.session_state.selected_request = req['id']
-                        st.session_state.active_tab = "View Requests"
-                        st.rerun()
+            col1, col2, col3, col4, col5 = st.columns([2, 3, 2, 2, 1])
+            with col1:
+                st.markdown(f"**{req['id']}**")
+            with col2:
+                st.markdown(f"{req['expense_line'][:30]}...")
+            with col3:
+                st.markdown(f"**NGN {req['net_amount']:,.2f}**")
+            with col4:
+                st.markdown(f"👤 {req['requested_by']}")
+            with col5:
+                if st.button(f"Review", key=f"dash_review_{req['id']}"):
+                    st.session_state.approve_request_id = req['id']
+                    st.rerun()
             st.markdown("---")
     
     # Key Metrics
@@ -1038,8 +944,6 @@ def dashboard():
     with col1:
         if st.session_state.requests:
             df = pd.DataFrame(st.session_state.requests)
-            
-            # Department-wise requests
             dept_counts = df['department'].value_counts().head(10)
             fig = px.bar(x=dept_counts.index, y=dept_counts.values, 
                         title="Requests by Department",
@@ -1070,7 +974,6 @@ def dashboard():
                                      barmode='group', height=400)
                     st.plotly_chart(fig, use_container_width=True)
     
-    # Recent requests
     st.subheader("📋 Recent Requests")
     if st.session_state.requests:
         recent = pd.DataFrame(st.session_state.requests[-5:])
@@ -1165,7 +1068,7 @@ def main():
                 options=["Dashboard", "Create Request", "View Requests", "Vendor Management", "User Management"],
                 icons=["speedometer2", "plus-circle", "list-task", "building", "people"],
                 menu_icon="cast",
-                default_index=0 if st.session_state.active_tab == "Dashboard" else 2 if st.session_state.active_tab == "View Requests" else 0,
+                default_index=0,
                 styles={
                     "container": {"padding": "0!important", "background-color": "#fafafa"},
                     "icon": {"color": "#ED1C24", "font-size": "18px"},
@@ -1175,16 +1078,13 @@ def main():
                 }
             )
         
-        # Update active tab
-        st.session_state.active_tab = selected
-        
         # Logout button
         if st.sidebar.button("🚪 Logout", use_container_width=True):
             st.session_state.authenticated = False
             st.session_state.username = None
             st.session_state.user_role = None
             st.session_state.user_department = None
-            st.session_state.selected_request = None
+            st.session_state.approve_request_id = None
             st.rerun()
         
         # Page routing
