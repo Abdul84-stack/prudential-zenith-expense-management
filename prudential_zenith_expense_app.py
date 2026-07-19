@@ -1,4 +1,4 @@
-# app.py - Complete Fixed Version with Working Approvals & PDF Reports
+# app.py - Complete Working Version with HTML Reports (No ReportLab)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,12 +12,6 @@ from PIL import Image
 import plotly.graph_objects as go
 import plotly.express as px
 from streamlit_option_menu import option_menu
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 # Page Configuration
 st.set_page_config(
@@ -283,22 +277,17 @@ def get_approval_chain(department, amount):
     
     chain = []
     for approver in base_chain:
-        # Skip Investment for amounts <= 250,000
         if approver == 'Head of Investment' and amount <= 250000:
             continue
-        # Skip Finance for amounts > 250,000
         if approver == 'Head of Finance' and amount > 250000:
             continue
-        # Skip CFO for amounts <= 5,000,000
         if approver == 'CFO/ED' and amount <= 5000000:
             continue
         chain.append(approver)
     
-    # Add CFO for amounts > 5,000,000
     if amount > 5000000 and 'CFO/ED' not in chain:
         chain.append('CFO/ED')
     
-    # Ensure minimum chain
     if not chain:
         chain = ['Head of Department']
     
@@ -318,115 +307,97 @@ def get_user_data(username):
         return DEFAULT_USERS[username]
     return None
 
-def generate_pdf_report(request_data):
-    """Generate PDF report using reportlab"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                           rightMargin=72, leftMargin=72,
-                           topMargin=72, bottomMargin=18)
-    
-    styles = getSampleStyleSheet()
-    story = []
-    
-    # Title
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#ED1C24'),
-        alignment=TA_CENTER,
-        spaceAfter=20
-    )
-    story.append(Paragraph("PRUDENTIAL ZENITH LIFE INSURANCE", title_style))
-    
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Heading2'],
-        fontSize=16,
-        textColor=colors.HexColor('#1a1a1a'),
-        alignment=TA_CENTER,
-        spaceAfter=30
-    )
-    story.append(Paragraph("Expense Requisition Report", subtitle_style))
-    story.append(Spacer(1, 12))
-    
-    # Request details table
-    data = [
-        ['Field', 'Value'],
-        ['Request ID', request_data.get('id', 'N/A')],
-        ['Request Type', request_data.get('request_type', 'N/A')],
-        ['Expense Line', request_data.get('expense_line', 'N/A')],
-        ['Vendor', request_data.get('vendor', 'N/A')],
-        ['Total Amount', f"NGN {request_data.get('total_amount', 0):,.2f}"],
-        ['VAT (7.5%)', f"NGN {request_data.get('vat', 0):,.2f}"],
-        ['WHT', f"NGN {request_data.get('wht', 0):,.2f}"],
-        ['Net Amount', f"NGN {request_data.get('net_amount', 0):,.2f}"],
-        ['Department', request_data.get('department', 'N/A')],
-        ['Requested By', request_data.get('requested_by', 'N/A')],
-        ['Date', request_data.get('date', 'N/A')],
-        ['Status', request_data.get('status', 'N/A')],
-        ['Justification', request_data.get('justification', 'N/A')],
-    ]
-    
-    t = Table(data, colWidths=[150, 300])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ED1C24')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('TOPPADDING', (0, 1), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-    ]))
-    story.append(t)
-    story.append(Spacer(1, 20))
-    
-    # Approval chain
-    story.append(Paragraph("Approval Chain", styles['Heading2']))
-    story.append(Spacer(1, 10))
-    
-    approval_data = [['Level', 'Approver', 'Status', 'Date']]
+def generate_html_report(request_data):
+    """Generate HTML report - no external dependencies"""
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Expense Requisition Report</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
+            .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
+            .header {{ background: #ED1C24; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .header h1 {{ margin: 0; font-size: 24px; }}
+            .header h2 {{ margin: 5px 0 0; font-weight: 300; font-size: 16px; }}
+            .header .sub {{ font-size: 12px; opacity: 0.8; margin-top: 5px; }}
+            .content {{ padding: 20px; }}
+            .field {{ margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; }}
+            .label {{ font-weight: bold; display: inline-block; width: 150px; color: #333; }}
+            .status-approved {{ color: #28a745; font-weight: bold; }}
+            .status-pending {{ color: #ffc107; font-weight: bold; }}
+            .status-rejected {{ color: #dc3545; font-weight: bold; }}
+            .status-more-info {{ color: #17a2b8; font-weight: bold; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
+            th {{ background-color: #ED1C24; color: white; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            .footer {{ margin-top: 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }}
+            .company-name {{ color: #ED1C24; font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🏦 <span class="company-name">PRUDENTIAL ZENITH</span></h1>
+                <h2>Life Insurance - Expense Requisition Report</h2>
+                <div class="sub">Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+            </div>
+            <div class="content">
+                <h3>Request Details</h3>
+                <div class="field"><span class="label">Request ID:</span> {request_data.get('id', 'N/A')}</div>
+                <div class="field"><span class="label">Request Type:</span> {request_data.get('request_type', 'N/A')}</div>
+                <div class="field"><span class="label">Expense Line:</span> {request_data.get('expense_line', 'N/A')}</div>
+                <div class="field"><span class="label">Vendor:</span> {request_data.get('vendor', 'N/A')}</div>
+                <div class="field"><span class="label">Total Amount:</span> NGN {request_data.get('total_amount', 0):,.2f}</div>
+                <div class="field"><span class="label">VAT (7.5%):</span> NGN {request_data.get('vat', 0):,.2f}</div>
+                <div class="field"><span class="label">WHT:</span> NGN {request_data.get('wht', 0):,.2f}</div>
+                <div class="field"><span class="label">Net Amount:</span> <strong>NGN {request_data.get('net_amount', 0):,.2f}</strong></div>
+                <div class="field"><span class="label">Department:</span> {request_data.get('department', 'N/A')}</div>
+                <div class="field"><span class="label">Requested By:</span> {request_data.get('requested_by', 'N/A')}</div>
+                <div class="field"><span class="label">Date:</span> {request_data.get('date', 'N/A')}</div>
+                <div class="field"><span class="label">Status:</span> <span class="status-{request_data.get('status', '').lower()}">{request_data.get('status', 'N/A')}</span></div>
+                <div class="field"><span class="label">Justification:</span> {request_data.get('justification', 'N/A')}</div>
+                
+                <h3>Approval Chain</h3>
+                <table>
+                    <tr>
+                        <th>Level</th>
+                        <th>Approver</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+    """
     for approval in request_data.get('approvals', []):
-        approval_data.append([
-            str(approval.get('level', 0) + 1),
-            approval.get('approver', ''),
-            approval.get('status', 'Pending'),
-            approval.get('date', '')
-        ])
+        status_color = 'green' if approval['status'] == 'Approved' else 'red' if approval['status'] == 'Rejected' else 'orange'
+        html += f"""
+                    <tr>
+                        <td>{approval.get('level', 0) + 1}</td>
+                        <td>{approval.get('approver', '')}</td>
+                        <td style="color: {status_color};">{approval.get('status', 'Pending')}</td>
+                        <td>{approval.get('date', '')}</td>
+                    </tr>
+        """
     
-    t2 = Table(approval_data, colWidths=[60, 150, 100, 150])
-    t2.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ED1C24')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('TOPPADDING', (0, 1), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-    ]))
-    story.append(t2)
-    story.append(Spacer(1, 30))
-    
-    # Footer
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.HexColor('#666666'),
-        alignment=TA_CENTER
-    )
-    story.append(Paragraph("Generated on " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'), footer_style))
-    story.append(Paragraph("© 2024 Prudential Zenith Life Insurance. All rights reserved.", footer_style))
-    
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    html += f"""
+                </table>
+                
+                <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #ED1C24;">
+                    <p style="margin: 0; font-size: 14px; color: #333;">
+                        <strong>Report Generated By:</strong> Prudential Zenith Expense Management System
+                    </p>
+                </div>
+            </div>
+            <div class="footer">
+                <p>© 2024 Prudential Zenith Life Insurance. All rights reserved.</p>
+                <p>This is a system-generated report. Please verify all details.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
 
 def login_page():
     st.markdown("""
@@ -584,7 +555,6 @@ def create_request():
                 
                 net_amount = total_amount + vat_amount - wht_amount
                 
-                # Get approval chain
                 approval_chain = get_approval_chain(st.session_state.user_department, net_amount)
                 
                 request = {
@@ -633,7 +603,6 @@ def view_requests():
     pending_for_user = []
     for req in st.session_state.requests:
         if req['status'] == 'Pending':
-            # Check if user is the current approver
             current_level = req['current_level']
             if current_level < len(req['approvals']):
                 if req['approvals'][current_level]['approver'] == user_role:
@@ -694,7 +663,6 @@ def view_requests():
         
         # Detailed view for each request
         for request in filtered_requests:
-            # Check if this request should be expanded
             is_pending_for_user = request in pending_for_user
             is_selected = st.session_state.approve_request_id == request['id']
             is_expanded = is_pending_for_user or is_selected
@@ -755,11 +723,10 @@ def view_requests():
                             </div>
                         """, unsafe_allow_html=True)
                 
-                # Approval form - Show if user is the current approver
+                # Approval form
                 current_level = request['current_level']
                 is_approver = False
                 
-                # Check if current level is valid and user is the approver
                 if current_level < len(request['approvals']):
                     if request['approvals'][current_level]['approver'] == user_role and request['approvals'][current_level]['status'] == 'Pending':
                         is_approver = True
@@ -775,21 +742,17 @@ def view_requests():
                         comments = st.text_area("Comments / Notes", placeholder="Add your comments here...", key=f"comments_{request['id']}")
                         
                         if st.form_submit_button("Submit Decision", use_container_width=True):
-                            # Update the approval
                             request['approvals'][current_level]['status'] = action
                             request['approvals'][current_level]['date'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                             
                             if action == "Approve":
-                                # Check if this is the last approval
                                 if current_level == len(request['approvals']) - 1:
                                     request['status'] = 'Approved'
                                     st.success(f"✅ Request {request['id']} has been FULLY APPROVED!")
                                     st.balloons()
                                 else:
-                                    # Move to next approver
                                     request['current_level'] = current_level + 1
                                     request['status'] = 'Pending'
-                                    # Notify next approver
                                     next_approver = request['approvals'][current_level + 1]['approver']
                                     st.session_state.notifications.append({
                                         'request_id': request['id'],
@@ -809,23 +772,22 @@ def view_requests():
                                 request['status'] = 'More Info'
                                 st.warning(f"ℹ️ More information requested for {request['id']}")
                             
-                            # Clear the approval request ID after action
                             st.session_state.approve_request_id = None
                             st.rerun()
                 else:
-                    # Show who the current approver is
                     if current_level < len(request['approvals']):
                         st.info(f"⏳ Currently awaiting approval from: **{request['approvals'][current_level]['approver']}**")
                 
-                # Generate PDF report for approved requests
+                # Generate HTML report for approved requests
                 if request['status'] == 'Approved':
-                    if st.button(f"📄 Generate PDF Report for {request['id']}", key=f"pdf_report_{request['id']}"):
-                        pdf_buffer = generate_pdf_report(request)
+                    st.markdown("---")
+                    if st.button(f"📄 Generate Report for {request['id']}", key=f"report_{request['id']}"):
+                        html_report = generate_html_report(request)
                         st.download_button(
-                            label="⬇️ Download PDF Report",
-                            data=pdf_buffer,
-                            file_name=f"{request['id']}_report.pdf",
-                            mime="application/pdf"
+                            label="⬇️ Download HTML Report",
+                            data=html_report,
+                            file_name=f"{request['id']}_report.html",
+                            mime="text/html"
                         )
     else:
         st.info("📭 No requests found matching your criteria")
