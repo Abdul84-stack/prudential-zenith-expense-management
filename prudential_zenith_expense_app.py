@@ -1,4 +1,4 @@
-# app.py - Fixed Approval Workflow
+# app.py - Complete Fixed Version with Working Approvals & PDF Reports
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,6 +12,12 @@ from PIL import Image
 import plotly.graph_objects as go
 import plotly.express as px
 from streamlit_option_menu import option_menu
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch, cm
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 # Page Configuration
 st.set_page_config(
@@ -277,17 +283,22 @@ def get_approval_chain(department, amount):
     
     chain = []
     for approver in base_chain:
+        # Skip Investment for amounts <= 250,000
         if approver == 'Head of Investment' and amount <= 250000:
             continue
+        # Skip Finance for amounts > 250,000
         if approver == 'Head of Finance' and amount > 250000:
             continue
+        # Skip CFO for amounts <= 5,000,000
         if approver == 'CFO/ED' and amount <= 5000000:
             continue
         chain.append(approver)
     
+    # Add CFO for amounts > 5,000,000
     if amount > 5000000 and 'CFO/ED' not in chain:
         chain.append('CFO/ED')
     
+    # Ensure minimum chain
     if not chain:
         chain = ['Head of Department']
     
@@ -306,6 +317,116 @@ def get_user_data(username):
     if username in DEFAULT_USERS:
         return DEFAULT_USERS[username]
     return None
+
+def generate_pdf_report(request_data):
+    """Generate PDF report using reportlab"""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                           rightMargin=72, leftMargin=72,
+                           topMargin=72, bottomMargin=18)
+    
+    styles = getSampleStyleSheet()
+    story = []
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#ED1C24'),
+        alignment=TA_CENTER,
+        spaceAfter=20
+    )
+    story.append(Paragraph("PRUDENTIAL ZENITH LIFE INSURANCE", title_style))
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#1a1a1a'),
+        alignment=TA_CENTER,
+        spaceAfter=30
+    )
+    story.append(Paragraph("Expense Requisition Report", subtitle_style))
+    story.append(Spacer(1, 12))
+    
+    # Request details table
+    data = [
+        ['Field', 'Value'],
+        ['Request ID', request_data.get('id', 'N/A')],
+        ['Request Type', request_data.get('request_type', 'N/A')],
+        ['Expense Line', request_data.get('expense_line', 'N/A')],
+        ['Vendor', request_data.get('vendor', 'N/A')],
+        ['Total Amount', f"NGN {request_data.get('total_amount', 0):,.2f}"],
+        ['VAT (7.5%)', f"NGN {request_data.get('vat', 0):,.2f}"],
+        ['WHT', f"NGN {request_data.get('wht', 0):,.2f}"],
+        ['Net Amount', f"NGN {request_data.get('net_amount', 0):,.2f}"],
+        ['Department', request_data.get('department', 'N/A')],
+        ['Requested By', request_data.get('requested_by', 'N/A')],
+        ['Date', request_data.get('date', 'N/A')],
+        ['Status', request_data.get('status', 'N/A')],
+        ['Justification', request_data.get('justification', 'N/A')],
+    ]
+    
+    t = Table(data, colWidths=[150, 300])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ED1C24')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 20))
+    
+    # Approval chain
+    story.append(Paragraph("Approval Chain", styles['Heading2']))
+    story.append(Spacer(1, 10))
+    
+    approval_data = [['Level', 'Approver', 'Status', 'Date']]
+    for approval in request_data.get('approvals', []):
+        approval_data.append([
+            str(approval.get('level', 0) + 1),
+            approval.get('approver', ''),
+            approval.get('status', 'Pending'),
+            approval.get('date', '')
+        ])
+    
+    t2 = Table(approval_data, colWidths=[60, 150, 100, 150])
+    t2.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ED1C24')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+    ]))
+    story.append(t2)
+    story.append(Spacer(1, 30))
+    
+    # Footer
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#666666'),
+        alignment=TA_CENTER
+    )
+    story.append(Paragraph("Generated on " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'), footer_style))
+    story.append(Paragraph("© 2024 Prudential Zenith Life Insurance. All rights reserved.", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 def login_page():
     st.markdown("""
@@ -463,6 +584,7 @@ def create_request():
                 
                 net_amount = total_amount + vat_amount - wht_amount
                 
+                # Get approval chain
                 approval_chain = get_approval_chain(st.session_state.user_department, net_amount)
                 
                 request = {
@@ -511,10 +633,11 @@ def view_requests():
     pending_for_user = []
     for req in st.session_state.requests:
         if req['status'] == 'Pending':
-            for approval in req['approvals']:
-                if approval['approver'] == user_role and approval['status'] == 'Pending':
+            # Check if user is the current approver
+            current_level = req['current_level']
+            if current_level < len(req['approvals']):
+                if req['approvals'][current_level]['approver'] == user_role:
                     pending_for_user.append(req)
-                    break
     
     # Show pending approvals
     if pending_for_user:
@@ -641,9 +764,6 @@ def view_requests():
                     if request['approvals'][current_level]['approver'] == user_role and request['approvals'][current_level]['status'] == 'Pending':
                         is_approver = True
                 
-                # DEBUG: Show current status (remove in production)
-                # st.caption(f"Debug: current_level={current_level}, total_approvals={len(request['approvals'])}, is_approver={is_approver}")
-                
                 if is_approver:
                     st.markdown("---")
                     st.markdown("## ✋ Your Approval Required")
@@ -697,91 +817,18 @@ def view_requests():
                     if current_level < len(request['approvals']):
                         st.info(f"⏳ Currently awaiting approval from: **{request['approvals'][current_level]['approver']}**")
                 
-                # Generate report for approved requests
+                # Generate PDF report for approved requests
                 if request['status'] == 'Approved':
-                    if st.button(f"📄 Generate Report for {request['id']}", key=f"report_{request['id']}"):
-                        html_report = generate_html_report(request)
+                    if st.button(f"📄 Generate PDF Report for {request['id']}", key=f"pdf_report_{request['id']}"):
+                        pdf_buffer = generate_pdf_report(request)
                         st.download_button(
-                            label="⬇️ Download Report (HTML)",
-                            data=html_report,
-                            file_name=f"{request['id']}_report.html",
-                            mime="text/html"
+                            label="⬇️ Download PDF Report",
+                            data=pdf_buffer,
+                            file_name=f"{request['id']}_report.pdf",
+                            mime="application/pdf"
                         )
     else:
         st.info("📭 No requests found matching your criteria")
-
-def generate_html_report(request_data):
-    """Generate HTML report"""
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
-            .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
-            .header {{ background: #ED1C24; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
-            .header h1 {{ margin: 0; font-size: 24px; }}
-            .header h2 {{ margin: 5px 0 0; font-weight: 300; font-size: 16px; }}
-            .content {{ padding: 20px; }}
-            .field {{ margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; }}
-            .label {{ font-weight: bold; display: inline-block; width: 150px; color: #333; }}
-            .status-approved {{ color: #28a745; font-weight: bold; }}
-            .status-pending {{ color: #ffc107; font-weight: bold; }}
-            .status-rejected {{ color: #dc3545; font-weight: bold; }}
-            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-            th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-            th {{ background-color: #ED1C24; color: white; }}
-            .footer {{ margin-top: 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🏦 PRUDENTIAL ZENITH</h1>
-                <h2>Life Insurance - Expense Requisition Report</h2>
-            </div>
-            <div class="content">
-                <div class="field"><span class="label">Request ID:</span> {request_data.get('id', 'N/A')}</div>
-                <div class="field"><span class="label">Request Type:</span> {request_data.get('request_type', 'N/A')}</div>
-                <div class="field"><span class="label">Expense Line:</span> {request_data.get('expense_line', 'N/A')}</div>
-                <div class="field"><span class="label">Total Amount:</span> NGN {request_data.get('total_amount', 0):,.2f}</div>
-                <div class="field"><span class="label">VAT (7.5%):</span> NGN {request_data.get('vat', 0):,.2f}</div>
-                <div class="field"><span class="label">WHT:</span> NGN {request_data.get('wht', 0):,.2f}</div>
-                <div class="field"><span class="label">Net Amount:</span> NGN {request_data.get('net_amount', 0):,.2f}</div>
-                <div class="field"><span class="label">Vendor:</span> {request_data.get('vendor', 'N/A')}</div>
-                <div class="field"><span class="label">Department:</span> {request_data.get('department', 'N/A')}</div>
-                <div class="field"><span class="label">Status:</span> <span class="status-{request_data.get('status', '').lower()}">{request_data.get('status', 'N/A')}</span></div>
-                <div class="field"><span class="label">Requested By:</span> {request_data.get('requested_by', 'N/A')}</div>
-                <div class="field"><span class="label">Date:</span> {request_data.get('date', 'N/A')}</div>
-                <div class="field"><span class="label">Justification:</span> {request_data.get('justification', 'N/A')}</div>
-                
-                <h3>Approval Chain</h3>
-                <table>
-                    <tr><th>Level</th><th>Approver</th><th>Status</th><th>Date</th></tr>
-    """
-    for approval in request_data.get('approvals', []):
-        status_color = 'green' if approval['status'] == 'Approved' else 'red' if approval['status'] == 'Rejected' else 'orange'
-        html += f"""
-                    <tr>
-                        <td>{approval.get('level', 0) + 1}</td>
-                        <td>{approval.get('approver', '')}</td>
-                        <td style="color: {status_color};">{approval.get('status', 'Pending')}</td>
-                        <td>{approval.get('date', '')}</td>
-                    </tr>
-        """
-    
-    html += f"""
-                </table>
-            </div>
-            <div class="footer">
-                <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                <p>© 2024 Prudential Zenith Life Insurance. All rights reserved.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return html
 
 def vendor_management():
     st.header("🏢 Vendor Management")
@@ -872,10 +919,10 @@ def dashboard():
     pending_for_user = []
     for req in st.session_state.requests:
         if req['status'] == 'Pending':
-            for approval in req['approvals']:
-                if approval['approver'] == user_role and approval['status'] == 'Pending':
+            current_level = req['current_level']
+            if current_level < len(req['approvals']):
+                if req['approvals'][current_level]['approver'] == user_role:
                     pending_for_user.append(req)
-                    break
     
     # Display notifications
     if pending_for_user:
