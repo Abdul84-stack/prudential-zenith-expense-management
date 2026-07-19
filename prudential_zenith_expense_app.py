@@ -1,4 +1,4 @@
-# app.py - Fixed Approval Navigation
+# app.py - Fixed HTML Rendering in Approval Chain
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -37,7 +37,7 @@ st.markdown("""
         background-color: #f5f5f5;
     }
     
-    /* Login Page Styling - Smaller, More Elegant */
+    /* Login Page Styling */
     .login-container {
         max-width: 380px !important;
         margin: 60px auto !important;
@@ -117,15 +117,89 @@ st.markdown("""
         font-weight: 500;
     }
     
-    /* Notification Badge */
-    .notification-badge {
-        background: #ED1C24;
-        color: white;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 11px;
+    /* Approval Chain Cards */
+    .approval-card {
+        padding: 12px;
+        border-radius: 10px;
+        text-align: center;
+        min-height: 90px;
+        border: 1px solid #ddd;
+        background: white;
+    }
+    
+    .approval-card .emoji {
+        font-size: 24px;
+    }
+    
+    .approval-card .approver-name {
         font-weight: 600;
-        display: inline-block;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .approval-card .status-text {
+        font-size: 11px;
+        margin-top: 3px;
+    }
+    
+    .approval-card .date-text {
+        font-size: 10px;
+        color: #999;
+        margin-top: 2px;
+    }
+    
+    .approval-card .action-required {
+        font-size: 10px;
+        color: #ED1C24;
+        font-weight: 600;
+        margin-top: 3px;
+    }
+    
+    .approval-card .current-indicator {
+        font-size: 10px;
+        color: #ffc107;
+        font-weight: 600;
+        margin-top: 3px;
+    }
+    
+    .approval-card-approved {
+        border-color: #28a745;
+        background: #f0fff4;
+    }
+    
+    .approval-card-rejected {
+        border-color: #dc3545;
+        background: #fff5f5;
+    }
+    
+    .approval-card-pending {
+        border-color: #ffc107;
+        background: #fffbf0;
+    }
+    
+    .approval-card-current {
+        border: 2px solid #ED1C24;
+        background: #fff8f8;
+    }
+    
+    .approval-card-approver {
+        border: 2px solid #ED1C24;
+        background: #fff0f0;
+    }
+    
+    /* Pending Approval Card */
+    .pending-card {
+        background: #FFF8F8;
+        border: 1px solid #ED1C24;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+    }
+    
+    .pending-card:hover {
+        box-shadow: 0 4px 15px rgba(237, 28, 36, 0.15);
+        transform: translateX(5px);
     }
     
     /* Status Badges */
@@ -194,21 +268,6 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background-color: #ED1C24;
         color: white;
-    }
-    
-    /* Pending Approval Card */
-    .pending-card {
-        background: #FFF8F8;
-        border: 1px solid #ED1C24;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        transition: all 0.3s;
-    }
-    
-    .pending-card:hover {
-        box-shadow: 0 4px 15px rgba(237, 28, 36, 0.15);
-        transform: translateX(5px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -566,7 +625,6 @@ def view_requests():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # This is the key fix - the review button now sets the selected request and switches to view requests
                 if st.button(f"📝 Review {req['id']}", key=f"review_{req['id']}"):
                     st.session_state.selected_request = req['id']
                     st.session_state.active_tab = "View Requests"
@@ -605,7 +663,6 @@ def view_requests():
         
         # Detailed view for each request
         for request in filtered_requests:
-            # Check if this is the selected request to expand
             is_selected = st.session_state.selected_request == request['id']
             is_pending_for_user = request in pending_for_user
             
@@ -614,7 +671,6 @@ def view_requests():
                 expander_title = f"🔔 {expander_title}"
             
             with st.expander(expander_title, expanded=(is_selected or is_pending_for_user)):
-                # Clear selected request after viewing
                 if is_selected:
                     st.session_state.selected_request = None
                 
@@ -639,32 +695,41 @@ def view_requests():
                     st.write(f"**Budget Balance:** NGN {balance:,.2f}")
                     st.write(f"**Justification:** {request['justification']}")
                 
-                # Approval chain with visual status
+                # Approval chain with visual status - FIXED HTML RENDERING
                 st.markdown("---")
                 st.markdown("**📊 Approval Chain**")
                 
-                # Create approval status cards
-                cols = st.columns(len(request['approvals']))
-                for idx, (col, approval) in enumerate(zip(cols, request['approvals'])):
+                # Create approval status cards using Streamlit columns with proper rendering
+                approval_cols = st.columns(len(request['approvals']))
+                
+                for idx, (col, approval) in enumerate(zip(approval_cols, request['approvals'])):
                     status_emoji = "✅" if approval['status'] == 'Approved' else "❌" if approval['status'] == 'Rejected' else "⏳"
                     status_color = "#28a745" if approval['status'] == 'Approved' else "#dc3545" if approval['status'] == 'Rejected' else "#ffc107"
                     is_current = idx == request['current_level'] and request['status'] == 'Pending'
                     is_approver = approval['approver'] == user_role and approval['status'] == 'Pending'
                     
+                    # Determine card style
+                    card_class = "approval-card"
+                    if is_approver:
+                        card_class += " approval-card-approver"
+                    elif is_current:
+                        card_class += " approval-card-current"
+                    elif approval['status'] == 'Approved':
+                        card_class += " approval-card-approved"
+                    elif approval['status'] == 'Rejected':
+                        card_class += " approval-card-rejected"
+                    else:
+                        card_class += " approval-card-pending"
+                    
                     with col:
                         st.markdown(f"""
-                            <div style="background: {'#fff3cd' if is_current else '#f8f9fa' if is_approver else 'white'}; 
-                                        padding: 10px; 
-                                        border-radius: 10px; 
-                                        border: {f'2px solid #ED1C24' if is_approver else f'2px solid {status_color}' if is_current else '1px solid #ddd'};
-                                        text-align: center;
-                                        min-height: 80px;">
-                                <div style="font-size: 20px;">{status_emoji}</div>
-                                <div style="font-weight: 600; font-size: 12px;">{approval['approver']}</div>
-                                <div style="font-size: 11px; color: {status_color};">{approval['status']}</div>
-                                <div style="font-size: 10px; color: #999;">{approval['date']}</div>
-                                {f'<div style="font-size: 10px; color: #ED1C24; font-weight: 600;">⬅️ Your Action Required</div>' if is_approver else ''}
-                                {f'<div style="font-size: 10px; color: #ffc107; font-weight: 600;">⬅️ Current</div>' if is_current and not is_approver else ''}
+                            <div class="{card_class}">
+                                <div class="emoji">{status_emoji}</div>
+                                <div class="approver-name">{approval['approver']}</div>
+                                <div class="status-text" style="color: {status_color};">{approval['status']}</div>
+                                <div class="date-text">{approval['date']}</div>
+                                {f'<div class="action-required">⬅️ Your Action Required</div>' if is_approver else ''}
+                                {f'<div class="current-indicator">⬅️ Current</div>' if is_current and not is_approver else ''}
                             </div>
                         """, unsafe_allow_html=True)
                 
@@ -686,21 +751,17 @@ def view_requests():
                         comments = st.text_area("Comments", placeholder="Add your comments here...", key=f"comments_{request['id']}")
                         
                         if st.form_submit_button("Submit Decision", use_container_width=True):
-                            # Update the approval
                             request['approvals'][current_level]['status'] = action
                             request['approvals'][current_level]['date'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                             
                             if action == "Approve":
-                                # Check if this is the last approval
                                 if current_level == len(request['approvals']) - 1:
                                     request['status'] = 'Approved'
                                     st.success(f"✅ Request {request['id']} has been FULLY APPROVED!")
                                     st.balloons()
                                 else:
-                                    # Move to next approver
                                     request['current_level'] = current_level + 1
                                     request['status'] = 'Pending'
-                                    # Notify next approver
                                     next_approver = request['approvals'][current_level + 1]['approver']
                                     st.session_state.notifications.append({
                                         'request_id': request['id'],
