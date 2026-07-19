@@ -1,4 +1,4 @@
-# app.py - Complete Updated Version with Fixed Approvals & Brand Colors
+# app.py - Fixed Approval Navigation
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -195,6 +195,21 @@ st.markdown("""
         background-color: #ED1C24;
         color: white;
     }
+    
+    /* Pending Approval Card */
+    .pending-card {
+        background: #FFF8F8;
+        border: 1px solid #ED1C24;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+    }
+    
+    .pending-card:hover {
+        box-shadow: 0 4px 15px rgba(237, 28, 36, 0.15);
+        transform: translateX(5px);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -215,6 +230,10 @@ if 'users' not in st.session_state:
     st.session_state.users = {}
 if 'notifications' not in st.session_state:
     st.session_state.notifications = []
+if 'selected_request' not in st.session_state:
+    st.session_state.selected_request = None
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = "Dashboard"
 
 # Default users with department mapping
 DEFAULT_USERS = {
@@ -532,24 +551,26 @@ def view_requests():
     if pending_for_user:
         st.warning(f"🔔 You have {len(pending_for_user)} pending approval(s) requiring your action!")
         
-        # Quick approval cards
+        # Quick approval cards with working review buttons
         st.subheader("📋 Your Pending Approvals - Click to Review")
         for req in pending_for_user:
             with st.container():
-                col1, col2, col3, col4, col5 = st.columns([2, 3, 2, 2, 1])
-                with col1:
-                    st.markdown(f"**{req['id']}**")
-                with col2:
-                    st.markdown(f"{req['expense_line'][:30]}...")
-                with col3:
-                    st.markdown(f"**NGN {req['net_amount']:,.2f}**")
-                with col4:
-                    st.markdown(f"👤 {req['requested_by']}")
-                with col5:
-                    if st.button(f"Review", key=f"quick_review_{req['id']}"):
-                        st.session_state.selected_request = req['id']
-                        st.rerun()
-            st.markdown("---")
+                st.markdown(f"""
+                <div class="pending-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                        <div style="font-weight: 700; color: #ED1C24; min-width: 120px;">{req['id']}</div>
+                        <div style="flex: 1; margin: 0 10px; min-width: 150px;">{req['expense_line'][:40]}</div>
+                        <div style="font-weight: 600; color: #1a1a1a; min-width: 120px;">NGN {req['net_amount']:,.2f}</div>
+                        <div style="color: #666; min-width: 100px;">👤 {req['requested_by']}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # This is the key fix - the review button now sets the selected request and switches to view requests
+                if st.button(f"📝 Review {req['id']}", key=f"review_{req['id']}"):
+                    st.session_state.selected_request = req['id']
+                    st.session_state.active_tab = "View Requests"
+                    st.rerun()
     
     # Filter options
     col1, col2, col3 = st.columns(3)
@@ -584,11 +605,19 @@ def view_requests():
         
         # Detailed view for each request
         for request in filtered_requests:
+            # Check if this is the selected request to expand
+            is_selected = st.session_state.selected_request == request['id']
+            is_pending_for_user = request in pending_for_user
+            
             expander_title = f"{request['id']} - {request['expense_line'][:30]}... - {request['status']}"
-            if request in pending_for_user:
+            if is_pending_for_user:
                 expander_title = f"🔔 {expander_title}"
             
-            with st.expander(expander_title, expanded=(request in pending_for_user)):
+            with st.expander(expander_title, expanded=(is_selected or is_pending_for_user)):
+                # Clear selected request after viewing
+                if is_selected:
+                    st.session_state.selected_request = None
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown(f"**📌 Request Details**")
@@ -649,7 +678,7 @@ def view_requests():
                 if is_approver:
                     st.markdown("---")
                     st.markdown("**✋ Your Approval Required**")
-                    st.info(f"You are the current approver for this request.")
+                    st.info(f"You are the current approver for this request. Please review the details above and take action below.")
                     
                     with st.form(key=f"approval_form_{request['id']}"):
                         action = st.radio("Action", ["Approve", "Reject", "Request More Information"], 
@@ -893,8 +922,7 @@ def dashboard():
                 with col5:
                     if st.button(f"Review", key=f"dash_review_{req['id']}"):
                         st.session_state.selected_request = req['id']
-                        # Navigate to view requests
-                        st.session_state.dashboard_nav = "View Requests"
+                        st.session_state.active_tab = "View Requests"
                         st.rerun()
             st.markdown("---")
     
@@ -1076,7 +1104,7 @@ def main():
                 options=["Dashboard", "Create Request", "View Requests", "Vendor Management", "User Management"],
                 icons=["speedometer2", "plus-circle", "list-task", "building", "people"],
                 menu_icon="cast",
-                default_index=0,
+                default_index=0 if st.session_state.active_tab == "Dashboard" else 2 if st.session_state.active_tab == "View Requests" else 0,
                 styles={
                     "container": {"padding": "0!important", "background-color": "#fafafa"},
                     "icon": {"color": "#ED1C24", "font-size": "18px"},
@@ -1086,12 +1114,16 @@ def main():
                 }
             )
         
+        # Update active tab
+        st.session_state.active_tab = selected
+        
         # Logout button
         if st.sidebar.button("🚪 Logout", use_container_width=True):
             st.session_state.authenticated = False
             st.session_state.username = None
             st.session_state.user_role = None
             st.session_state.user_department = None
+            st.session_state.selected_request = None
             st.rerun()
         
         # Page routing
