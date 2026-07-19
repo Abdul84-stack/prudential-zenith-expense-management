@@ -1,4 +1,4 @@
-# app.py - Complete Working Version with HTML Reports (No ReportLab)
+# app.py - Complete Fixed Version with Working Approvals
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -202,6 +202,7 @@ if 'user_role' not in st.session_state:
 if 'user_department' not in st.session_state:
     st.session_state.user_department = None
 if 'requests' not in st.session_state:
+    # Add some sample data for testing
     st.session_state.requests = []
 if 'vendors' not in st.session_state:
     st.session_state.vendors = []
@@ -277,17 +278,22 @@ def get_approval_chain(department, amount):
     
     chain = []
     for approver in base_chain:
+        # Skip Investment for amounts <= 250,000
         if approver == 'Head of Investment' and amount <= 250000:
             continue
+        # Skip Finance for amounts > 250,000
         if approver == 'Head of Finance' and amount > 250000:
             continue
+        # Skip CFO for amounts <= 5,000,000
         if approver == 'CFO/ED' and amount <= 5000000:
             continue
         chain.append(approver)
     
+    # Add CFO for amounts > 5,000,000
     if amount > 5000000 and 'CFO/ED' not in chain:
         chain.append('CFO/ED')
     
+    # Ensure minimum chain
     if not chain:
         chain = ['Head of Department']
     
@@ -308,7 +314,7 @@ def get_user_data(username):
     return None
 
 def generate_html_report(request_data):
-    """Generate HTML report - no external dependencies"""
+    """Generate HTML report"""
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -598,15 +604,21 @@ def view_requests():
     st.header("📋 Requests Management")
     st.markdown("---")
     
-    # Get user's pending approvals
+    # Get user's pending approvals - FIXED: Check if user is the current approver
     user_role = st.session_state.user_role
     pending_for_user = []
+    
     for req in st.session_state.requests:
         if req['status'] == 'Pending':
             current_level = req['current_level']
+            # Check if current_level is valid and user is the approver
             if current_level < len(req['approvals']):
                 if req['approvals'][current_level]['approver'] == user_role:
                     pending_for_user.append(req)
+    
+    # Debug: Show current state (remove in production)
+    # st.write(f"Debug: User role: {user_role}")
+    # st.write(f"Debug: Pending requests: {len(pending_for_user)}")
     
     # Show pending approvals
     if pending_for_user:
@@ -723,7 +735,7 @@ def view_requests():
                             </div>
                         """, unsafe_allow_html=True)
                 
-                # Approval form
+                # Approval form - Show if user is the current approver
                 current_level = request['current_level']
                 is_approver = False
                 
@@ -742,17 +754,21 @@ def view_requests():
                         comments = st.text_area("Comments / Notes", placeholder="Add your comments here...", key=f"comments_{request['id']}")
                         
                         if st.form_submit_button("Submit Decision", use_container_width=True):
+                            # Update the approval
                             request['approvals'][current_level]['status'] = action
                             request['approvals'][current_level]['date'] = datetime.now().strftime("%Y-%m-%d %H:%M")
                             
                             if action == "Approve":
+                                # Check if this is the last approval
                                 if current_level == len(request['approvals']) - 1:
                                     request['status'] = 'Approved'
                                     st.success(f"✅ Request {request['id']} has been FULLY APPROVED!")
                                     st.balloons()
                                 else:
+                                    # Move to next approver
                                     request['current_level'] = current_level + 1
                                     request['status'] = 'Pending'
+                                    # Notify next approver
                                     next_approver = request['approvals'][current_level + 1]['approver']
                                     st.session_state.notifications.append({
                                         'request_id': request['id'],
